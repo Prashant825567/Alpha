@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        /* Main Alpha Logo Container */
+        #alpha-logo {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            top: 50px;
+            left: 50px;
+            cursor: move;
+            z-index: 9999;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Stopped state - Gray background */
+        #alpha-logo.stopped {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        /* Running state - Blue background */
+        #alpha-logo.running {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+            }
+            50% {
+                box-shadow: 0 4px 25px rgba(0, 123, 255, 0.8);
+            }
+        }
+
+        /* Alpha Logo Text */
+        .logo-text {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Control Panel */
+        #control-panel {
+            position: fixed;
+            display: none;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            padding: 20px;
+            min-width: 200px;
+            top: 160px;
+            left: 50px;
+        }
+
+        #control-panel.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        /* Control Buttons */
+        .control-btn {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #333;
+        }
+
+        .btn-stop:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+        }
+
+        .btn-uninstall {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .btn-uninstall:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        /* Status Indicator */
+        #status-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            z-index: 10000;
+            transition: all 0.3s ease;
+        }
+
+        #status-indicator.running {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+
+        #status-indicator.stopped {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        /* Emotion Display */
+        #emotion-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 50px;
+            padding: 10px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10000;
+            transition: all 0.3s ease;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        #emotion-emoji {
+            font-size: 30px;
+        }
+
+        #emotion-text {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Welcome Screen */
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20000;
+        }
+
+        #welcome-screen.hidden {
+            display: none;
+        }
+
+        .welcome-content {
+            text-align: center;
+            color: white;
+            padding: 40px;
+        }
+
+        .welcome-logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .welcome-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .welcome-subtitle {
+            font-size: 24px;
+            margin-bottom: 40px;
+        }
+
+        .welcome-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .welcome-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <!-- Welcome Screen -->
+    <div id="welcome-screen">
+        <div class="welcome-content">
+            <div class="welcome-logo">🤖</div>
+            <h1 class="welcome-title">Welcome to Alpha AI</h1>
+            <p class="welcome-subtitle">Your Personal AI Assistant</p>
+            <button class="welcome-btn" onclick="hideWelcome()">Get Started</button>
+        </div>
+    </div>
+
+    <!-- Alpha Logo -->
+    <div id="alpha-logo" class="stopped">
+        <span class="logo-text">α</span>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel">
+        <h3 class="panel-title">Alpha Controls</h3>
+        <button class="control-btn btn-start" onclick="startAlpha()">▶ START</button>
+        <button class="control-btn btn-stop" onclick="stopAlpha()">⏸ STOP</button>
+        <button class="control-btn btn-uninstall" onclick="uninstallAlpha()">🗑 UNINSTALL</button>
+    </div>
+
+    <!-- Status Indicator with Emotion -->
+    <div id="status-indicator" class="stopped">
+        Alpha is stopped
+    </div>
+
+    <!-- Emotion Display -->
+    <div id="emotion-display">
+        <div id="emotion-emoji">😐</div>
+        <div id="emotion-text">Neutral</div>
+    </div>
+
+    <script>
+        // API endpoint
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Drag functionality
+        const logo = document.getElementById('alpha-logo');
+        const controlPanel = document.getElementById('control-panel');
+        const statusIndicator = document.getElementById('status-indicator');
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        // Make logo draggable
+        logo.addEventListener('mousedown', startDrag);
+        logo.addEventListener('touchstart', startDrag, { passive: false });
+
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            
+            const rect = logo.getBoundingClientRect();
+            
+            if (e.type === 'touchstart') {
+                offsetX = e.touches[0].clientX - rect.left;
+                offsetY = e.touches[0].clientY - rect.top;
+                
+                document.addEventListener('touchmove', drag);
+                document.addEventListener('touchend', stopDrag);
+            } else {
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDrag);
+            }
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            let clientX, clientY;
+            
+            if (e.type === 'touchmove') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            const x = clientX - offsetX;
+            const y = clientY - offsetY;
+            
+            logo.style.left = `${x}px`;
+            logo.style.top = `${y}px`;
+            
+            // Move control panel with logo
+            controlPanel.style.left = `${x}px`;
+            controlPanel.style.top = `${y + 110}px`;
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        // Click to show/hide control panel
+        logo.addEventListener('click', (e) => {
+            if (!isDragging) {
+                e.stopPropagation();
+                controlPanel.classList.toggle('show');
+            }
+        });
+
+        // Hide control panel when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!logo.contains(e.target) && !controlPanel.contains(e.target)) {
+                controlPanel.classList.remove('show');
+            }
+        });
+
+        // Alpha Control Functions
+        async function startAlpha() {
+            try {
+                const response = await fetch(`${API_BASE}/start`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    updateUI('running');
+                    controlPanel.classList.remove('show');
+                    speak("Alpha is now activated and ready to help you!");
+                } else {
+                    alert('Failed to start Alpha');
+                }
+            } catch (error) {
+                console.error('Error starting Alpha:', error);
+                alert('Failed to connect to Alpha backend');
+            }
+        }
+
+        async function stopAlpha() {
+            try {
+                const response = await fetch(`${API_BASE}/stop`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    updateUI('stopped');
+                    controlPanel.classList.remove('show');
+                    speak("Alpha has been stopped. Say Alpha to activate me again.");
+                } else {
+                    alert('Failed to stop Alpha');
+                }
+            } catch (error) {
+                console.error('Error stopping Alpha:', error);
+                alert('Failed to connect to Alpha backend');
+            }
+        }
+
+        function uninstallAlpha() {
+            if (confirm('Are you sure you want to uninstall Alpha AI?\n\nThis will remove Alpha from your phone. You will need to reinstall from GitHub to use it again.')) {
+                // Uninstall logic - this would trigger the uninstallation process
+                alert('Uninstallation process initiated. Alpha will be removed from your phone.');
+                
+                // Send uninstall command to backend
+                fetch(`${API_BASE}/uninstall`, {
+                    method: 'POST'
+                }).catch(error => console.error('Error:', error));
+                
+                // Close the UI
+                controlPanel.classList.remove('show');
+            }
+        }
+
+        function updateUI(state) {
+            if (state === 'running') {
+                logo.classList.remove('stopped');
+                logo.classList.add('running');
+                statusIndicator.classList.remove('stopped');
+                statusIndicator.classList.add('running');
+                statusIndicator.textContent = 'Alpha is running';
+            } else {
+                logo.classList.remove('running');
+                logo.classList.add('stopped');
+                statusIndicator.classList.remove('running');
+                statusIndicator.classList.add('stopped');
+                statusIndicator.textContent = 'Alpha is stopped';
+            }
+        }
+
+        function speak(text) {
+            // Use the Web Speech API
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.2; // Higher pitch for female voice
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        function hideWelcome() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+        }
+
+        // Check Alpha status on load
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.is_running) {
+                        updateUI('running');
+                    } else {
+                        updateUI('stopped');
+                    }
+                    
+                    // Update emotion display
+                    if (data.current_emotion) {
+                        updateEmotion(data.current_emotion, data.emotion_emoji);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        // Update emotion display
+        function updateEmotion(emotion, emoji) {
+            document.getElementById('emotion-emoji').textContent = emoji || '😐';
+            document.getElementById('emotion-text').textContent = emotion ? emotion.charAt(0).toUpperCase() + emotion.slice(1) : 'Neutral';
+        }
+
+        // Periodically update emotion
+        setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE}/emotion`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateEmotion(data.emotion, data.emoji);
+                }
+            } catch (error) {
+                console.error('Error updating emotion:', error);
+            }
+        }, 2000); // Update every 2 seconds
+
+        // Initialize
+        checkStatus();
+    </script>
+</body>
+</html>

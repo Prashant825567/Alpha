@@ -1,0 +1,46 @@
+{
+  "alpha": {
+    "name": "Alpha",
+    "version": "1.0.0",
+    "activation_word": "alpha",
+    "voice_settings": {
+      "gender": "female",
+      "rate": 150,
+      "volume": 0.9,
+      "pitch": 1.2
+    }
+  },
+  "features": {
+    "voice_recognition": true,
+    "tts": true,
+    "screen_analysis": true,
+    "camera_access": true,
+    "phone_control": true,
+    "web_browsing": true,
+    "play_store": true,
+    "whatsapp": true,
+    "instagram": true,
+    "youtube": true,
+    "code_generation": true
+  },
+  "ui": {
+    "logo_size": 100,
+    "logo_position": {
+      "x": 50,
+      "y": 50
+    },
+    "colors": {
+      "active": "#007bff",
+      "inactive": "#6c757d"
+    }
+  },
+  "storage": {
+    "screenshots_dir": "/storage/emulated/0/Alpha/screenshots",
+    "codes_dir": "/storage/emulated/0/Alpha/codes",
+    "logs_dir": "/storage/emulated/0/Alpha/logs"
+  },
+  "api": {
+    "host": "0.0.0.0",
+    "port": 5000
+  }
+}
