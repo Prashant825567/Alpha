@@ -10,18 +10,65 @@ import time
 import json
 import threading
 import subprocess
-import speech_recognition as sr
-import pyttsx3
+
+# Try to import speech_recognition, provide fallback if not available
+try:
+    import speech_recognition as sr
+    SR_AVAILABLE = True
+except ImportError:
+    SR_AVAILABLE = False
+    print("⚠️  SpeechRecognition not installed. Voice commands will use text input.")
+
+# Try to import pyttsx3, provide fallback if not available
+try:
+    import pyttsx3
+    TTS_AVAILABLE = True
+except ImportError:
+    TTS_AVAILABLE = False
+    print("⚠️  pyttsx3 not installed. Using system TTS.")
+
 from datetime import datetime
-import cv2
-import numpy as np
-from PIL import Image
-import pyautogui
-import requests
-from flask import Flask, request, jsonify
-import webbrowser
 import re
 import random
+
+# Try to import optional packages with fallbacks
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("⚠️  OpenCV not installed. Camera features disabled.")
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    print("⚠️  NumPy not installed. Some features disabled.")
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("⚠️  Pillow not installed. Image features disabled.")
+
+try:
+    import pyautogui
+    AUTOGUI_AVAILABLE = True
+except ImportError:
+    AUTOGUI_AVAILABLE = False
+    print("⚠️  PyAutoGUI not installed. Screen automation disabled.")
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    print("⚠️  Requests not installed. Web features disabled.")
+
+from flask import Flask, request, jsonify
+import webbrowser
 
 # Initialize Flask for web control
 app = Flask(__name__)
@@ -65,7 +112,265 @@ def init_tts():
 tts_engine = init_tts()
 
 # Initialize Speech Recognition
-recognizer = sr.Recognizer()
+if SR_AVAILABLE:
+    recognizer = sr.Recognizer()
+else:
+    recognizer = None
+
+# ============================================
+# PHONE SETTINGS CONTROL SYSTEM
+# ============================================
+
+class SettingsControl:
+    """Control Android phone settings - WiFi, Bluetooth, Volume, Brightness"""
+    
+    def __init__(self):
+        self.settings_file = '/storage/emulated/0/Alpha/settings_state.json'
+        self.load_settings()
+    
+    def load_settings(self):
+        """Load current settings state"""
+        try:
+            if os.path.exists(self.settings_file):
+                with open(self.settings_file, 'r') as f:
+                    self.settings = json.load(f)
+            else:
+                self.settings = {
+                    'wifi': False,
+                    'bluetooth': False,
+                    'volume': 50,
+                    'brightness': 50,
+                    'do_not_disturb': False,
+                    'airplane_mode': False
+                }
+        except Exception as e:
+            log_error(f"Error loading settings: {e}")
+            self.settings = {}
+    
+    def save_settings(self):
+        """Save current settings state"""
+        try:
+            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+            with open(self.settings_file, 'w') as f:
+                json.dump(self.settings, f, indent=2)
+        except Exception as e:
+            log_error(f"Error saving settings: {e}")
+    
+    def wifi_control(self, action):
+        """Control WiFi - on/off"""
+        try:
+            if action.lower() in ['on', 'enable', 'turn on']:
+                # Turn on WiFi
+                os.system("termux-wifi-connection enable")
+                self.settings['wifi'] = True
+                self.save_settings()
+                speak("WiFi has been turned on, boss! 📶", emotion='happy')
+                return True
+            elif action.lower() in ['off', 'disable', 'turn off']:
+                # Turn off WiFi
+                os.system("termux-wifi-connection disable")
+                self.settings['wifi'] = False
+                self.save_settings()
+                speak("WiFi has been turned off, boss! 📵", emotion='neutral')
+                return True
+        except Exception as e:
+            log_error(f"WiFi control error: {e}")
+            speak("Sorry boss, I couldn't control WiFi. You might need to grant permission.", emotion='worried')
+            return False
+    
+    def bluetooth_control(self, action):
+        """Control Bluetooth - on/off"""
+        try:
+            if action.lower() in ['on', 'enable', 'turn on']:
+                # Turn on Bluetooth
+                os.system("termux-bluetooth enable")
+                self.settings['bluetooth'] = True
+                self.save_settings()
+                speak("Bluetooth has been turned on, boss! 📡", emotion='happy')
+                return True
+            elif action.lower() in ['off', 'disable', 'turn off']:
+                # Turn off Bluetooth
+                os.system("termux-bluetooth disable")
+                self.settings['bluetooth'] = False
+                self.save_settings()
+                speak("Bluetooth has been turned off, boss! 🔇", emotion='neutral')
+                return True
+        except Exception as e:
+            log_error(f"Bluetooth control error: {e}")
+            speak("Sorry boss, I couldn't control Bluetooth. You might need to grant permission.", emotion='worried')
+            return False
+    
+    def volume_control(self, level):
+        """Control volume - level can be 0-100 or 'up', 'down', 'mute', 'max'"""
+        try:
+            if level.lower() == 'mute':
+                # Mute volume
+                os.system("termux-volume music 0")
+                os.system("termux-volume notification 0")
+                os.system("termux-volume system 0")
+                self.settings['volume'] = 0
+                self.save_settings()
+                speak("Volume has been muted, boss! 🔇", emotion='neutral')
+            elif level.lower() == 'max' or level.lower() == 'maximum':
+                # Max volume
+                os.system("termux-volume music 100")
+                os.system("termux-volume notification 100")
+                os.system("termux-volume system 100")
+                self.settings['volume'] = 100
+                self.save_settings()
+                speak("Volume has been set to maximum, boss! 🔊", emotion='excited')
+            elif level.lower() == 'up':
+                # Volume up by 10
+                current = self.settings.get('volume', 50)
+                new_level = min(100, current + 10)
+                os.system(f"termux-volume music {new_level}")
+                os.system(f"termux-volume notification {new_level}")
+                os.system(f"termux-volume system {new_level}")
+                self.settings['volume'] = new_level
+                self.save_settings()
+                speak(f"Volume increased to {new_level}%, boss! 🔊", emotion='happy')
+            elif level.lower() == 'down':
+                # Volume down by 10
+                current = self.settings.get('volume', 50)
+                new_level = max(0, current - 10)
+                os.system(f"termux-volume music {new_level}")
+                os.system(f"termux-volume notification {new_level}")
+                os.system(f"termux-volume system {new_level}")
+                self.settings['volume'] = new_level
+                self.save_settings()
+                speak(f"Volume decreased to {new_level}%, boss! 🔉", emotion='neutral')
+            else:
+                # Set specific volume level
+                try:
+                    vol_level = int(level.replace('%', '').strip())
+                    vol_level = max(0, min(100, vol_level))
+                    os.system(f"termux-volume music {vol_level}")
+                    os.system(f"termux-volume notification {vol_level}")
+                    os.system(f"termux-volume system {vol_level}")
+                    self.settings['volume'] = vol_level
+                    self.save_settings()
+                    speak(f"Volume has been set to {vol_level}%, boss! 🔊", emotion='happy')
+                except ValueError:
+                    speak(f"Sorry boss, I couldn't understand the volume level. Please say a number between 0 and 100.", emotion='curious')
+                    return False
+            return True
+        except Exception as e:
+            log_error(f"Volume control error: {e}")
+            speak("Sorry boss, I couldn't control volume. You might need to grant permission.", emotion='worried')
+            return False
+    
+    def brightness_control(self, level):
+        """Control screen brightness - level can be 0-100 or 'up', 'down', 'max', 'min'"""
+        try:
+            if level.lower() in ['max', 'maximum', 'highest']:
+                # Maximum brightness
+                os.system("termux-brightness 255")
+                self.settings['brightness'] = 100
+                self.save_settings()
+                speak("Brightness has been set to maximum, boss! ☀️", emotion='excited')
+            elif level.lower() in ['min', 'minimum', 'lowest']:
+                # Minimum brightness
+                os.system("termux-brightness 1")
+                self.settings['brightness'] = 0
+                self.save_settings()
+                speak("Brightness has been set to minimum, boss! 🌙", emotion='neutral')
+            elif level.lower() == 'up':
+                # Increase brightness
+                current = self.settings.get('brightness', 50)
+                new_level = min(255, int((current / 100 * 255) + 25))
+                os.system(f"termux-brightness {new_level}")
+                self.settings['brightness'] = int((new_level / 255) * 100)
+                self.save_settings()
+                speak(f"Brightness increased, boss! ☀️", emotion='happy')
+            elif level.lower() == 'down':
+                # Decrease brightness
+                current = self.settings.get('brightness', 50)
+                new_level = max(1, int((current / 100 * 255) - 25))
+                os.system(f"termux-brightness {new_level}")
+                self.settings['brightness'] = int((new_level / 255) * 100)
+                self.save_settings()
+                speak(f"Brightness decreased, boss! 🌙", emotion='neutral')
+            else:
+                # Set specific brightness level
+                try:
+                    bright_level = int(level.replace('%', '').strip())
+                    bright_level = max(0, min(100, bright_level))
+                    brightness_value = int((bright_level / 100) * 255)
+                    os.system(f"termux-brightness {brightness_value}")
+                    self.settings['brightness'] = bright_level
+                    self.save_settings()
+                    speak(f"Brightness has been set to {bright_level}%, boss! ☀️", emotion='happy')
+                except ValueError:
+                    speak(f"Sorry boss, I couldn't understand the brightness level. Please say a number between 0 and 100.", emotion='curious')
+                    return False
+            return True
+        except Exception as e:
+            log_error(f"Brightness control error: {e}")
+            speak("Sorry boss, I couldn't control brightness. You might need to grant permission.", emotion='worried')
+            return False
+    
+    def do_not_disturb(self, action):
+        """Control Do Not Disturb mode"""
+        try:
+            if action.lower() in ['on', 'enable', 'turn on']:
+                # Turn on DND
+                os.system("termux-notification --sound off")
+                self.settings['do_not_disturb'] = True
+                self.save_settings()
+                speak("Do Not Disturb mode has been turned on, boss! 🔕", emotion='neutral')
+            elif action.lower() in ['off', 'disable', 'turn off']:
+                # Turn off DND
+                os.system("termux-notification --sound on")
+                self.settings['do_not_disturb'] = False
+                self.save_settings()
+                speak("Do Not Disturb mode has been turned off, boss! 🔔", emotion='happy')
+        except Exception as e:
+            log_error(f"DND control error: {e}")
+            speak("Sorry boss, I couldn't control Do Not Disturb mode.", emotion='worried')
+    
+    def airplane_mode(self, action):
+        """Control Airplane Mode"""
+        try:
+            if action.lower() in ['on', 'enable', 'turn on']:
+                # Turn on airplane mode
+                os.system("termux-location disable")
+                self.settings['airplane_mode'] = True
+                self.save_settings()
+                speak("Airplane mode has been turned on, boss! ✈️", emotion='neutral')
+            elif action.lower() in ['off', 'disable', 'turn off']:
+                # Turn off airplane mode
+                os.system("termux-location enable")
+                self.settings['airplane_mode'] = False
+                self.save_settings()
+                speak("Airplane mode has been turned off, boss! 📶", emotion='happy')
+        except Exception as e:
+            log_error(f"Airplane mode error: {e}")
+            speak("Sorry boss, I couldn't control airplane mode. You might need root access.", emotion='worried')
+    
+    def get_settings_status(self):
+        """Get current settings status"""
+        return {
+            'wifi': self.settings.get('wifi', False),
+            'bluetooth': self.settings.get('bluetooth', False),
+            'volume': self.settings.get('volume', 50),
+            'brightness': self.settings.get('brightness', 50),
+            'do_not_disturb': self.settings.get('do_not_disturb', False),
+            'airplane_mode': self.settings.get('airplane_mode', False)
+        }
+    
+    def say_current_settings(self):
+        """Speak current settings"""
+        settings = self.get_settings_status()
+        status_text = f"Here are your current settings, boss: "
+        status_text += f"WiFi is {'on' if settings['wifi'] else 'off'}, "
+        status_text += f"Bluetooth is {'on' if settings['bluetooth'] else 'off'}, "
+        status_text += f"volume is at {settings['volume']}%, "
+        status_text += f"brightness is at {settings['brightness']}%, "
+        status_text += f"and Do Not Disturb is {'on' if settings['do_not_disturb'] else 'off'}."
+        speak(status_text, emotion='curious')
+
+# Initialize settings control
+settings_control = SettingsControl()
 
 # ============================================
 # HUMAN-LIKE EMOTIONS SYSTEM
@@ -320,6 +625,24 @@ def listen():
     """Listen for voice commands"""
     if not alpha_state['is_listening']:
         return None
+    
+    if not SR_AVAILABLE:
+        # Fallback to text input if speech recognition not available
+        print("\n" + "="*50)
+        print("🎤 Voice recognition not available")
+        print("💬 Type your command below (or 'quit' to exit):")
+        print("="*50)
+        try:
+            command = input("\nYour command: ").strip().lower()
+            if command == 'quit':
+                return None
+            log_message(f"Input: {command}")
+            return command
+        except KeyboardInterrupt:
+            return None
+        except Exception as e:
+            log_error(f"Input error: {e}")
+            return None
     
     try:
         with sr.Microphone() as source:
@@ -745,6 +1068,89 @@ def process_command(command):
             generate_code(description)
         return
     
+    # ============================================
+    # SETTINGS CONTROL COMMANDS
+    # ============================================
+    
+    # WiFi control
+    if 'wifi' in command:
+        if 'on' in command or 'enable' in command or 'turn on' in command:
+            settings_control.wifi_control('on')
+        elif 'off' in command or 'disable' in command or 'turn off' in command:
+            settings_control.wifi_control('off')
+        return
+    
+    # Bluetooth control
+    if 'bluetooth' in command:
+        if 'on' in command or 'enable' in command or 'turn on' in command:
+            settings_control.bluetooth_control('on')
+        elif 'off' in command or 'disable' in command or 'turn off' in command:
+            settings_control.bluetooth_control('off')
+        return
+    
+    # Volume control
+    if 'volume' in command:
+        if 'mute' in command:
+            settings_control.volume_control('mute')
+        elif 'max' in command or 'maximum' in command:
+            settings_control.volume_control('max')
+        elif 'up' in command or 'increase' in command or 'louder' in command:
+            settings_control.volume_control('up')
+        elif 'down' in command or 'decrease' in command or 'lower' in command or 'quieter' in command:
+            settings_control.volume_control('down')
+        else:
+            # Extract number from command
+            import re
+            match = re.search(r'\d+', command)
+            if match:
+                volume_level = match.group()
+                settings_control.volume_control(volume_level)
+            else:
+                speak("Please specify the volume level, boss. You can say: volume 50, volume up, volume down, volume mute, or volume max.", emotion='curious')
+        return
+    
+    # Brightness control
+    if 'brightness' in command:
+        if 'max' in command or 'maximum' in command or 'highest' in command:
+            settings_control.brightness_control('max')
+        elif 'min' in command or 'minimum' in command or 'lowest' in command:
+            settings_control.brightness_control('min')
+        elif 'up' in command or 'increase' in command:
+            settings_control.brightness_control('up')
+        elif 'down' in command or 'decrease' in command:
+            settings_control.brightness_control('down')
+        else:
+            # Extract number from command
+            import re
+            match = re.search(r'\d+', command)
+            if match:
+                bright_level = match.group()
+                settings_control.brightness_control(bright_level)
+            else:
+                speak("Please specify the brightness level, boss. You can say: brightness 80, brightness up, brightness down, brightness max, or brightness min.", emotion='curious')
+        return
+    
+    # Do Not Disturb control
+    if 'do not disturb' in command or 'dnd' in command:
+        if 'on' in command or 'enable' in command or 'turn on' in command:
+            settings_control.do_not_disturb('on')
+        elif 'off' in command or 'disable' in command or 'turn off' in command:
+            settings_control.do_not_disturb('off')
+        return
+    
+    # Airplane mode control
+    if 'airplane mode' in command or 'flight mode' in command:
+        if 'on' in command or 'enable' in command or 'turn on' in command:
+            settings_control.airplane_mode('on')
+        elif 'off' in command or 'disable' in command or 'turn off' in command:
+            settings_control.airplane_mode('off')
+        return
+    
+    # Get current settings
+    if 'settings' in command and ('status' in command or 'current' in command or 'what are' in command):
+        settings_control.say_current_settings()
+        return
+    
     # Tell a joke (emotional feature)
     if 'joke' in command or 'funny' in command:
         jokes = [
@@ -812,6 +1218,59 @@ def start_alpha():
         "message": "Alpha is now running",
         "current_emotion": emotion_system.current_emotion,
         "emotion_emoji": emotion_system.get_emotion_emoji()
+    })
+
+@app.route('/api/settings/status', methods=['GET'])
+def get_settings_status():
+    """Get current settings status"""
+    return jsonify({
+        "settings": settings_control.get_settings_status()
+    })
+
+@app.route('/api/settings/wifi', methods=['POST'])
+def wifi_control():
+    """Control WiFi"""
+    data = request.json
+    action = data.get('action', 'on')
+    result = settings_control.wifi_control(action)
+    return jsonify({
+        "success": result,
+        "action": action,
+        "current_status": settings_control.get_settings_status()['wifi']
+    })
+
+@app.route('/api/settings/bluetooth', methods=['POST'])
+def bluetooth_control():
+    """Control Bluetooth"""
+    data = request.json
+    action = data.get('action', 'on')
+    result = settings_control.bluetooth_control(action)
+    return jsonify({
+        "success": result,
+        "action": action,
+        "current_status": settings_control.get_settings_status()['bluetooth']
+    })
+
+@app.route('/api/settings/volume', methods=['POST'])
+def volume_control():
+    """Control volume"""
+    data = request.json
+    level = data.get('level', 50)
+    result = settings_control.volume_control(str(level))
+    return jsonify({
+        "success": result,
+        "level": settings_control.get_settings_status()['volume']
+    })
+
+@app.route('/api/settings/brightness', methods=['POST'])
+def brightness_control():
+    """Control brightness"""
+    data = request.json
+    level = data.get('level', 50)
+    result = settings_control.brightness_control(str(level))
+    return jsonify({
+        "success": result,
+        "level": settings_control.get_settings_status()['brightness']
     })
 
 @app.route('/api/stop', methods=['POST'])

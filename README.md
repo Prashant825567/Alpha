@@ -9,6 +9,16 @@ A powerful AI personal assistant for Android phones with female voice control, s
 - Voice recognition with high accuracy
 - Activate by saying "Alpha"
 - Natural language commands
+- **Text input fallback** if voice not available
+
+### 🎭 Emotional Intelligence (NEW!)
+- **10 Human-like Emotions** - Happy, Sad, Excited, Worried, etc.
+- Emotion detection from voice
+- Voice pitch and rate adjustment
+- Emoji expressions
+- Mood tracking
+- Empathy and support
+- Jokes and humor
 
 ### 📱 Phone Control
 - **Play Store automation** - Download apps automatically
@@ -22,6 +32,15 @@ A powerful AI personal assistant for Android phones with female voice control, s
 - **YouTube control** - Play videos and music
 - **Auto-login** - Login to apps and websites
 - **Code generation** - Write and execute code
+
+### 🎛️ Settings Control (NEW!)
+- **WiFi Control** - Turn on/off WiFi
+- **Bluetooth Control** - Turn on/off Bluetooth
+- **Volume Control** - Set 0-100%, up, down, mute, max
+- **Brightness Control** - Set 0-100%, up, down, min, max
+- **Do Not Disturb** - Turn on/off DND mode
+- **Airplane Mode** - Turn on/off flight mode
+- **Settings Status** - Check all current settings
 
 ### 🖼️ Screen Analysis
 - Real-time screen content analysis
@@ -166,6 +185,30 @@ Or use the launcher:
 2. **Start Button**: Activates Alpha (blue background)
 3. **Stop Button**: Deactivates Alpha (gray background)
 4. **Uninstall Button**: Removes Alpha from your phone
+5. **Emotion Display**: Shows current emotion with emoji
+
+### Settings Control Commands
+
+#### WiFi & Bluetooth
+- "Turn on WiFi" / "Turn off WiFi"
+- "Turn on Bluetooth" / "Turn off Bluetooth"
+
+#### Volume Control
+- "Set volume to 80%"
+- "Volume up" / "Volume down"
+- "Mute volume" / "Max volume"
+
+#### Brightness Control
+- "Set brightness to 70%"
+- "Brightness up" / "Brightness down"
+- "Brightness max" / "Brightness min"
+
+#### Special Modes
+- "Turn on Do Not Disturb"
+- "Turn on Airplane Mode"
+- "What are my current settings?"
+
+See [SETTINGS_GUIDE.md](SETTINGS_GUIDE.md) for complete settings control documentation.
 
 ## 📁 Project Structure
 

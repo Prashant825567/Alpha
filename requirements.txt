@@ -1,21 +1,29 @@
-# Alpha AI Assistant Requirements
+# Alpha AI Assistant - Essential Requirements Only
 # Install with: pip install -r requirements.txt
 
-# Core dependencies
+# Core dependencies (always required)
+flask>=3.0.0
+
+# Optional dependencies - will work without them
+# Voice Recognition
 speechrecognition>=3.10.0
+
+# Text-to-Speech
 pyttsx3>=2.90
+
+# Image processing
 opencv-python>=4.8.0
 Pillow>=10.0.0
-pyautogui>=0.9.54
-requests>=2.31.0
-flask>=3.0.0
 numpy>=1.24.0
+
+# Screen automation
+pyautogui>=0.9.54
+
+# Web requests
+requests>=2.31.0
 
 # OCR for screen analysis
 pytesseract>=0.3.10
-
-# Web automation
-selenium>=4.15.0
 
 # Audio processing
 pyaudio>=0.2.13
